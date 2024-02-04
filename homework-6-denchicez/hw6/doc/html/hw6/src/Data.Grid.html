@@ -1,0 +1,142 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- | This module defines 'Grid' datatype.</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Feel free to define additional helper functions to work</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- with this datatype in this module.</span><span>
+</span><span id="line-4"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Grid</span><span>
+</span><span id="line-5"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier">Grid</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-7"></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Comonad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Comonad</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-9"></span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.ListZipper.html"><span class="hs-identifier">Data.ListZipper</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.ListZipper.html#ListZipper"><span class="hs-identifier">ListZipper</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.ListZipper.html#lLeft"><span class="hs-identifier">lLeft</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.ListZipper.html#lRight"><span class="hs-identifier">lRight</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.ListZipper.html#lGenerator"><span class="hs-identifier">lGenerator</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">newtype</span><span> </span><span id="Grid"><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-var">Grid</span></a></span></span><span> </span><span id="local-6989586621679060367"><span class="annot"><a href="#local-6989586621679060367"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Grid"><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-var">Grid</span></a></span></span><span> </span><span class="hs-special">{</span><span> </span><span id="unGrid"><span class="annot"><span class="annottext">Grid a -&gt; ListZipper (ListZipper a)
+</span><a href="Data.Grid.html#unGrid"><span class="hs-identifier hs-var hs-var">unGrid</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.ListZipper.html#ListZipper"><span class="hs-identifier hs-type">ListZipper</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.ListZipper.html#ListZipper"><span class="hs-identifier hs-type">ListZipper</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679060367"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679060336"><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-type">Grid</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-15"></span><span>  </span><span id="local-6989586621679060334"><span class="annot"><span class="annottext">fmap :: (a -&gt; b) -&gt; Grid a -&gt; Grid b
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">fmap</span></span></span><span> </span><span id="local-6989586621679060333"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679060333"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListZipper (ListZipper b) -&gt; Grid b
+forall a. ListZipper (ListZipper a) -&gt; Grid a
+</span><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-var">Grid</span></a></span><span> </span><span class="annot"><span class="annottext">(ListZipper (ListZipper b) -&gt; Grid b)
+-&gt; (Grid a -&gt; ListZipper (ListZipper b)) -&gt; Grid a -&gt; Grid b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(ListZipper a -&gt; ListZipper b)
+-&gt; ListZipper (ListZipper a) -&gt; ListZipper (ListZipper b)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">((ListZipper a -&gt; ListZipper b)
+ -&gt; ListZipper (ListZipper a) -&gt; ListZipper (ListZipper b))
+-&gt; ((a -&gt; b) -&gt; ListZipper a -&gt; ListZipper b)
+-&gt; (a -&gt; b)
+-&gt; ListZipper (ListZipper a)
+-&gt; ListZipper (ListZipper b)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; ListZipper a -&gt; ListZipper b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679060333"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(ListZipper (ListZipper a) -&gt; ListZipper (ListZipper b))
+-&gt; (Grid a -&gt; ListZipper (ListZipper a))
+-&gt; Grid a
+-&gt; ListZipper (ListZipper b)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Grid a -&gt; ListZipper (ListZipper a)
+forall a. Grid a -&gt; ListZipper (ListZipper a)
+</span><a href="Data.Grid.html#unGrid"><span class="hs-identifier hs-var hs-var">unGrid</span></a></span><span>
+</span><span id="line-16"></span><span>
+</span><span id="line-17"></span><span id="local-6989586621679060331"><span class="annot"><a href="Data.Grid.html#gUp"><span class="hs-identifier hs-type">gUp</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Grid.html#gDown"><span class="hs-identifier hs-type">gDown</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-type">Grid</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679060331"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-type">Grid</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679060331"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-18"></span><span id="gUp"><span class="annot"><span class="annottext">gUp :: Grid a -&gt; Grid a
+</span><a href="Data.Grid.html#gUp"><span class="hs-identifier hs-var hs-var">gUp</span></a></span></span><span>   </span><span class="hs-special">(</span><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-type">Grid</span></a></span><span> </span><span id="local-6989586621679060328"><span class="annot"><span class="annottext">ListZipper (ListZipper a)
+</span><a href="#local-6989586621679060328"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListZipper (ListZipper a) -&gt; Grid a
+forall a. ListZipper (ListZipper a) -&gt; Grid a
+</span><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-var">Grid</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ListZipper (ListZipper a) -&gt; ListZipper (ListZipper a)
+forall a. ListZipper a -&gt; ListZipper a
+</span><a href="Data.ListZipper.html#lLeft"><span class="hs-identifier hs-var">lLeft</span></a></span><span>  </span><span class="annot"><span class="annottext">ListZipper (ListZipper a)
+</span><a href="#local-6989586621679060328"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-19"></span><span id="gDown"><span class="annot"><span class="annottext">gDown :: Grid a -&gt; Grid a
+</span><a href="Data.Grid.html#gDown"><span class="hs-identifier hs-var hs-var">gDown</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-type">Grid</span></a></span><span> </span><span id="local-6989586621679060327"><span class="annot"><span class="annottext">ListZipper (ListZipper a)
+</span><a href="#local-6989586621679060327"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListZipper (ListZipper a) -&gt; Grid a
+forall a. ListZipper (ListZipper a) -&gt; Grid a
+</span><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-var">Grid</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ListZipper (ListZipper a) -&gt; ListZipper (ListZipper a)
+forall a. ListZipper a -&gt; ListZipper a
+</span><a href="Data.ListZipper.html#lRight"><span class="hs-identifier hs-var">lRight</span></a></span><span> </span><span class="annot"><span class="annottext">ListZipper (ListZipper a)
+</span><a href="#local-6989586621679060327"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span id="local-6989586621679060356"><span class="annot"><a href="Data.Grid.html#gLeft"><span class="hs-identifier hs-type">gLeft</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Grid.html#gRight"><span class="hs-identifier hs-type">gRight</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-type">Grid</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679060356"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-type">Grid</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679060356"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-22"></span><span id="gLeft"><span class="annot"><span class="annottext">gLeft :: Grid a -&gt; Grid a
+</span><a href="Data.Grid.html#gLeft"><span class="hs-identifier hs-var hs-var">gLeft</span></a></span></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-type">Grid</span></a></span><span> </span><span id="local-6989586621679060324"><span class="annot"><span class="annottext">ListZipper (ListZipper a)
+</span><a href="#local-6989586621679060324"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListZipper (ListZipper a) -&gt; Grid a
+forall a. ListZipper (ListZipper a) -&gt; Grid a
+</span><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-var">Grid</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(ListZipper a -&gt; ListZipper a)
+-&gt; ListZipper (ListZipper a) -&gt; ListZipper (ListZipper a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">ListZipper a -&gt; ListZipper a
+forall a. ListZipper a -&gt; ListZipper a
+</span><a href="Data.ListZipper.html#lLeft"><span class="hs-identifier hs-var">lLeft</span></a></span><span>  </span><span class="annot"><span class="annottext">ListZipper (ListZipper a)
+</span><a href="#local-6989586621679060324"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span id="gRight"><span class="annot"><span class="annottext">gRight :: Grid a -&gt; Grid a
+</span><a href="Data.Grid.html#gRight"><span class="hs-identifier hs-var hs-var">gRight</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-type">Grid</span></a></span><span> </span><span id="local-6989586621679060323"><span class="annot"><span class="annottext">ListZipper (ListZipper a)
+</span><a href="#local-6989586621679060323"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListZipper (ListZipper a) -&gt; Grid a
+forall a. ListZipper (ListZipper a) -&gt; Grid a
+</span><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-var">Grid</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(ListZipper a -&gt; ListZipper a)
+-&gt; ListZipper (ListZipper a) -&gt; ListZipper (ListZipper a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">ListZipper a -&gt; ListZipper a
+forall a. ListZipper a -&gt; ListZipper a
+</span><a href="Data.ListZipper.html#lRight"><span class="hs-identifier hs-var">lRight</span></a></span><span> </span><span class="annot"><span class="annottext">ListZipper (ListZipper a)
+</span><a href="#local-6989586621679060323"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span id="local-6989586621679060344"><span class="annot"><a href="Data.Grid.html#gHorizontal"><span class="hs-identifier hs-type">gHorizontal</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Grid.html#gVertical"><span class="hs-identifier hs-type">gVertical</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-type">Grid</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679060344"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.ListZipper.html#ListZipper"><span class="hs-identifier hs-type">ListZipper</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-type">Grid</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679060344"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-26"></span><span id="gHorizontal"><span class="annot"><span class="annottext">gHorizontal :: Grid a -&gt; ListZipper (Grid a)
+</span><a href="Data.Grid.html#gHorizontal"><span class="hs-identifier hs-var hs-var">gHorizontal</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Grid a -&gt; Grid a)
+-&gt; (Grid a -&gt; Grid a) -&gt; Grid a -&gt; ListZipper (Grid a)
+forall a. (a -&gt; a) -&gt; (a -&gt; a) -&gt; a -&gt; ListZipper a
+</span><a href="Data.ListZipper.html#lGenerator"><span class="hs-identifier hs-var">lGenerator</span></a></span><span> </span><span class="annot"><span class="annottext">Grid a -&gt; Grid a
+forall a. Grid a -&gt; Grid a
+</span><a href="Data.Grid.html#gLeft"><span class="hs-identifier hs-var">gLeft</span></a></span><span> </span><span class="annot"><span class="annottext">Grid a -&gt; Grid a
+forall a. Grid a -&gt; Grid a
+</span><a href="Data.Grid.html#gRight"><span class="hs-identifier hs-var">gRight</span></a></span><span>
+</span><span id="line-27"></span><span id="gVertical"><span class="annot"><span class="annottext">gVertical :: Grid a -&gt; ListZipper (Grid a)
+</span><a href="Data.Grid.html#gVertical"><span class="hs-identifier hs-var hs-var">gVertical</span></a></span></span><span>   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Grid a -&gt; Grid a)
+-&gt; (Grid a -&gt; Grid a) -&gt; Grid a -&gt; ListZipper (Grid a)
+forall a. (a -&gt; a) -&gt; (a -&gt; a) -&gt; a -&gt; ListZipper a
+</span><a href="Data.ListZipper.html#lGenerator"><span class="hs-identifier hs-var">lGenerator</span></a></span><span> </span><span class="annot"><span class="annottext">Grid a -&gt; Grid a
+forall a. Grid a -&gt; Grid a
+</span><a href="Data.Grid.html#gUp"><span class="hs-identifier hs-var">gUp</span></a></span><span>   </span><span class="annot"><span class="annottext">Grid a -&gt; Grid a
+forall a. Grid a -&gt; Grid a
+</span><a href="Data.Grid.html#gDown"><span class="hs-identifier hs-var">gDown</span></a></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679060316"><span class="annot"><span class="hs-identifier hs-type">Comonad</span></span><span> </span><span class="annot"><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-type">Grid</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-30"></span><span>  </span><span id="local-6989586621679060314"><span class="annot"><span class="annottext">extract :: Grid a -&gt; a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">extract</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListZipper a -&gt; a
+forall (w :: * -&gt; *) a. Comonad w =&gt; w a -&gt; a
+</span><span class="hs-identifier hs-var">extract</span></span><span> </span><span class="annot"><span class="annottext">(ListZipper a -&gt; a) -&gt; (Grid a -&gt; ListZipper a) -&gt; Grid a -&gt; a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">ListZipper (ListZipper a) -&gt; ListZipper a
+forall (w :: * -&gt; *) a. Comonad w =&gt; w a -&gt; a
+</span><span class="hs-identifier hs-var">extract</span></span><span> </span><span class="annot"><span class="annottext">(ListZipper (ListZipper a) -&gt; ListZipper a)
+-&gt; (Grid a -&gt; ListZipper (ListZipper a)) -&gt; Grid a -&gt; ListZipper a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Grid a -&gt; ListZipper (ListZipper a)
+forall a. Grid a -&gt; ListZipper (ListZipper a)
+</span><a href="Data.Grid.html#unGrid"><span class="hs-identifier hs-var hs-var">unGrid</span></a></span><span>
+</span><span id="line-31"></span><span>  </span><span id="local-6989586621679060312"><span class="annot"><span class="annottext">duplicate :: Grid a -&gt; Grid (Grid a)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">duplicate</span></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ListZipper (ListZipper (Grid a)) -&gt; Grid (Grid a)
+forall a. ListZipper (ListZipper a) -&gt; Grid a
+</span><a href="Data.Grid.html#Grid"><span class="hs-identifier hs-var">Grid</span></a></span><span> </span><span class="annot"><span class="annottext">(ListZipper (ListZipper (Grid a)) -&gt; Grid (Grid a))
+-&gt; (Grid a -&gt; ListZipper (ListZipper (Grid a)))
+-&gt; Grid a
+-&gt; Grid (Grid a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Grid a -&gt; ListZipper (Grid a))
+-&gt; ListZipper (Grid a) -&gt; ListZipper (ListZipper (Grid a))
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">Grid a -&gt; ListZipper (Grid a)
+forall a. Grid a -&gt; ListZipper (Grid a)
+</span><a href="Data.Grid.html#gHorizontal"><span class="hs-identifier hs-var">gHorizontal</span></a></span><span> </span><span class="annot"><span class="annottext">(ListZipper (Grid a) -&gt; ListZipper (ListZipper (Grid a)))
+-&gt; (Grid a -&gt; ListZipper (Grid a))
+-&gt; Grid a
+-&gt; ListZipper (ListZipper (Grid a))
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Grid a -&gt; ListZipper (Grid a)
+forall a. Grid a -&gt; ListZipper (Grid a)
+</span><a href="Data.Grid.html#gVertical"><span class="hs-identifier hs-var">gVertical</span></a></span><span>
+</span><span id="line-32"></span></pre></body></html>
