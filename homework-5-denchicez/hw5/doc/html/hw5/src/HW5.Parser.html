@@ -1,0 +1,1182 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE OverloadedStrings #-}</span><span>
+</span><span id="line-2"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">HW5.Parser</span><span> </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="HW5.Parser.html#parse"><span class="hs-identifier">parse</span></a></span><span> </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-3"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Void</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Void</span></span><span class="hs-special">)</span><span>
+</span><span id="line-4"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Scientific</span></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Text.Megaparsec</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">MP</span></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">parse</span></span><span class="hs-special">)</span><span>
+</span><span id="line-6"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Text.Megaparsec.Char</span></span><span>
+</span><span id="line-7"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Text.Megaparsec.Char.Lexer</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">L</span></span><span>
+</span><span id="line-8"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">T</span></span><span>
+</span><span id="line-9"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Text.Read</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">readMaybe</span></span><span class="hs-special">)</span><span>
+</span><span id="line-10"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Combinators.Expr</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Operator</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">makeExprParser</span></span><span class="hs-special">)</span><span>
+</span><span id="line-11"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">void</span></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="HW5.Base.html"><span class="hs-identifier">HW5.Base</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HW5.Base.html#HiFun"><span class="hs-identifier">HiFun</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier">HiExpr</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HW5.Base.html#HiValue"><span class="hs-identifier">HiValue</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HW5.Base.html#HiAction"><span class="hs-identifier">HiAction</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString</span></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Word8</span></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">type</span><span> </span><span id="Parser"><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-var">Parser</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Parsec</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Void</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-17"></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- | Terms</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- pS -&gt; pE | Infix pE</span><span>
+</span><span id="line-21"></span><span class="hs-comment">-- pE -&gt; (pValue | ( pS ) | pDict) pE'</span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- pDict -&gt; { pDictValue, ... , pDictValue }</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- pDictValue -&gt; pS : pS</span><span>
+</span><span id="line-24"></span><span class="hs-comment">-- pE' -&gt; (! | !E' | .word)pE' | eps</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- pValue -&gt; pBytes | pNumber | pFun | pBool | pText | pNull | pAction</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="annot"><a href="HW5.Parser.html#parse"><span class="hs-identifier hs-type">parse</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ParseErrorBundle</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Void</span></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-28"></span><span id="parse"><span class="annot"><span class="annottext">parse :: String -&gt; Either (ParseErrorBundle String Void) HiExpr
+</span><a href="HW5.Parser.html#parse"><span class="hs-identifier hs-var hs-var">parse</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+-&gt; String -&gt; String -&gt; Either (ParseErrorBundle String Void) HiExpr
+forall e s a.
+Parsec e s a -&gt; String -&gt; s -&gt; Either (ParseErrorBundle s e) a
+</span><span class="hs-identifier hs-var">runParser</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pExpr"><span class="hs-identifier hs-var">pExpr</span></a></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+-&gt; ParsecT Void String Identity () -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;*</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity ()
+forall e s (m :: * -&gt; *). MonadParsec e s m =&gt; m ()
+</span><span class="hs-identifier hs-var">eof</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&quot;</span></span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span class="annot"><a href="HW5.Parser.html#parserFun"><span class="hs-identifier hs-type">parserFun</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiFun"><span class="hs-identifier hs-type">HiFun</span></a></span><span>
+</span><span id="line-31"></span><span id="parserFun"><span class="annot"><span class="annottext">parserFun :: Parser HiFun
+</span><a href="HW5.Parser.html#parserFun"><span class="hs-identifier hs-var hs-var">parserFun</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Parser HiFun] -&gt; Parser HiFun
+forall (f :: * -&gt; *) (m :: * -&gt; *) a.
+(Foldable f, Alternative m) =&gt;
+f (m a) -&gt; m a
+</span><span class="hs-identifier hs-var">choice</span></span><span> </span><span class="hs-special">[</span><span>
+</span><span id="line-32"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunDiv"><span class="hs-identifier hs-var">HiFunDiv</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;div&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-33"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunMul"><span class="hs-identifier hs-var">HiFunMul</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;mul&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-34"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunAdd"><span class="hs-identifier hs-var">HiFunAdd</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;add&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-35"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunSub"><span class="hs-identifier hs-var">HiFunSub</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;sub&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-36"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunNotEquals"><span class="hs-identifier hs-var">HiFunNotEquals</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;not-equals&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-37"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunNotLessThan"><span class="hs-identifier hs-var">HiFunNotLessThan</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;not-less-than&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-38"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunNotGreaterThan"><span class="hs-identifier hs-var">HiFunNotGreaterThan</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;not-greater-than&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-39"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunNot"><span class="hs-identifier hs-var">HiFunNot</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;not&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-40"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunAnd"><span class="hs-identifier hs-var">HiFunAnd</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;and&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-41"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunOr"><span class="hs-identifier hs-var">HiFunOr</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;or&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-42"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunEquals"><span class="hs-identifier hs-var">HiFunEquals</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;equals&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-43"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunLessThan"><span class="hs-identifier hs-var">HiFunLessThan</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;less-than&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-44"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunGreaterThan"><span class="hs-identifier hs-var">HiFunGreaterThan</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;greater-than&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-45"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunIf"><span class="hs-identifier hs-var">HiFunIf</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;if&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-46"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunLength"><span class="hs-identifier hs-var">HiFunLength</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;length&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-47"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunToUpper"><span class="hs-identifier hs-var">HiFunToUpper</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;to-upper&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-48"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunToLower"><span class="hs-identifier hs-var">HiFunToLower</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;to-lower&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-49"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunReverse"><span class="hs-identifier hs-var">HiFunReverse</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;reverse&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-50"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunTrim"><span class="hs-identifier hs-var">HiFunTrim</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;trim&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-51"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunList"><span class="hs-identifier hs-var">HiFunList</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;list&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-52"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunRange"><span class="hs-identifier hs-var">HiFunRange</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;range&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-53"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunFold"><span class="hs-identifier hs-var">HiFunFold</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;fold&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-54"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunPackBytes"><span class="hs-identifier hs-var">HiFunPackBytes</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;pack-bytes&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-55"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunUnpackBytes"><span class="hs-identifier hs-var">HiFunUnpackBytes</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;unpack-bytes&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-56"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunEncodeUtf8"><span class="hs-identifier hs-var">HiFunEncodeUtf8</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;encode-utf8&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-57"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunDecodeUtf8"><span class="hs-identifier hs-var">HiFunDecodeUtf8</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;decode-utf8&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-58"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunZip"><span class="hs-identifier hs-var">HiFunZip</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;zip&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-59"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunUnzip"><span class="hs-identifier hs-var">HiFunUnzip</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;unzip&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-60"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunSerialise"><span class="hs-identifier hs-var">HiFunSerialise</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;serialise&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-61"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunDeserialise"><span class="hs-identifier hs-var">HiFunDeserialise</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;deserialise&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-62"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunKeys"><span class="hs-identifier hs-var">HiFunKeys</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;keys&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-63"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunValues"><span class="hs-identifier hs-var">HiFunValues</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;values&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-64"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunInvert"><span class="hs-identifier hs-var">HiFunInvert</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;invert&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-65"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunCount"><span class="hs-identifier hs-var">HiFunCount</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;count&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-66"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunRead"><span class="hs-identifier hs-var">HiFunRead</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;read&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-67"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunWrite"><span class="hs-identifier hs-var">HiFunWrite</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;write&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-68"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunMkDir"><span class="hs-identifier hs-var">HiFunMkDir</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;mkdir&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-69"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunChDir"><span class="hs-identifier hs-var">HiFunChDir</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;cd&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-70"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunParseTime"><span class="hs-identifier hs-var">HiFunParseTime</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;parse-time&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-71"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunRand"><span class="hs-identifier hs-var">HiFunRand</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;rand&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-72"></span><span>  </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunEcho"><span class="hs-identifier hs-var">HiFunEcho</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; ParsecT Void String Identity String -&gt; Parser HiFun
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;echo&quot;</span></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="annot"><a href="HW5.Parser.html#parserBool"><span class="hs-identifier hs-type">parserBool</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-75"></span><span id="parserBool"><span class="annot"><span class="annottext">parserBool :: Parser Bool
+</span><a href="HW5.Parser.html#parserBool"><span class="hs-identifier hs-var hs-var">parserBool</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Parser Bool] -&gt; Parser Bool
+forall (f :: * -&gt; *) (m :: * -&gt; *) a.
+(Foldable f, Alternative m) =&gt;
+f (m a) -&gt; m a
+</span><span class="hs-identifier hs-var">choice</span></span><span> </span><span class="hs-special">[</span><span>
+</span><span id="line-76"></span><span>  </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span>  </span><span class="annot"><span class="annottext">Bool -&gt; ParsecT Void String Identity String -&gt; Parser Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;true&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-77"></span><span>  </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; ParsecT Void String Identity String -&gt; Parser Bool
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;false&quot;</span></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="annot"><a href="HW5.Parser.html#parserString"><span class="hs-identifier hs-type">parserString</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-80"></span><span id="parserString"><span class="annot"><span class="annottext">parserString :: ParsecT Void String Identity String
+</span><a href="HW5.Parser.html#parserString"><span class="hs-identifier hs-var hs-var">parserString</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Token String -&gt; ParsecT Void String Identity (Token String)
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+Token s -&gt; m (Token s)
+</span><span class="hs-identifier hs-var">char</span></span><span> </span><span class="annot"><span class="annottext">Char
+Token String
+</span><span class="hs-char">'&quot;'</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity Char
+-&gt; ParsecT Void String Identity String
+-&gt; ParsecT Void String Identity String
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity Char
+-&gt; ParsecT Void String Identity Char
+-&gt; ParsecT Void String Identity String
+forall (m :: * -&gt; *) a end. MonadPlus m =&gt; m a -&gt; m end -&gt; m [a]
+</span><span class="hs-identifier hs-var">manyTill</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity Char
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+m Char
+</span><span class="hs-identifier hs-var">L.charLiteral</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Token String -&gt; ParsecT Void String Identity (Token String)
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+Token s -&gt; m (Token s)
+</span><span class="hs-identifier hs-var">char</span></span><span> </span><span class="annot"><span class="annottext">Char
+Token String
+</span><span class="hs-char">'&quot;'</span></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="annot"><a href="HW5.Parser.html#parserValueScientific"><span class="hs-identifier hs-type">parserValueScientific</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Scientific</span></span><span>
+</span><span id="line-83"></span><span id="parserValueScientific"><span class="annot"><span class="annottext">parserValueScientific :: Parser Scientific
+</span><a href="HW5.Parser.html#parserValueScientific"><span class="hs-identifier hs-var hs-var">parserValueScientific</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity ()
+-&gt; Parser Scientific -&gt; Parser Scientific
+forall e s (m :: * -&gt; *) a.
+(MonadParsec e s m, Token s ~ Char, Num a) =&gt;
+m () -&gt; m a -&gt; m a
+</span><span class="hs-identifier hs-var">L.signed</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">() -&gt; ParsecT Void String Identity ()
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Parser Scientific
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+m Scientific
+</span><span class="hs-identifier hs-var">L.scientific</span></span><span>
+</span><span id="line-84"></span><span>
+</span><span id="line-85"></span><span class="annot"><a href="HW5.Parser.html#parserExprValueNumber"><span class="hs-identifier hs-type">parserExprValueNumber</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiValue"><span class="hs-identifier hs-type">HiValue</span></a></span><span>
+</span><span id="line-86"></span><span id="parserExprValueNumber"><span class="annot"><span class="annottext">parserExprValueNumber :: Parser HiValue
+</span><a href="HW5.Parser.html#parserExprValueNumber"><span class="hs-identifier hs-var hs-var">parserExprValueNumber</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Scientific -&gt; HiValue) -&gt; Parser Scientific -&gt; Parser HiValue
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Rational -&gt; HiValue
+</span><a href="HW5.Base.html#HiValueNumber"><span class="hs-identifier hs-var">HiValueNumber</span></a></span><span> </span><span class="annot"><span class="annottext">(Rational -&gt; HiValue)
+-&gt; (Scientific -&gt; Rational) -&gt; Scientific -&gt; HiValue
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Scientific -&gt; Rational
+forall a. Real a =&gt; a -&gt; Rational
+</span><span class="hs-identifier hs-var">toRational</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Parser Scientific
+</span><a href="HW5.Parser.html#parserValueScientific"><span class="hs-identifier hs-var">parserValueScientific</span></a></span><span>
+</span><span id="line-87"></span><span>
+</span><span id="line-88"></span><span class="annot"><a href="HW5.Parser.html#parserExprValueFun"><span class="hs-identifier hs-type">parserExprValueFun</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiValue"><span class="hs-identifier hs-type">HiValue</span></a></span><span>
+</span><span id="line-89"></span><span id="parserExprValueFun"><span class="annot"><span class="annottext">parserExprValueFun :: Parser HiValue
+</span><a href="HW5.Parser.html#parserExprValueFun"><span class="hs-identifier hs-var hs-var">parserExprValueFun</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(HiFun -&gt; HiValue) -&gt; Parser HiFun -&gt; Parser HiValue
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; HiValue
+</span><a href="HW5.Base.html#HiValueFunction"><span class="hs-identifier hs-var">HiValueFunction</span></a></span><span> </span><span class="annot"><span class="annottext">Parser HiFun
+</span><a href="HW5.Parser.html#parserFun"><span class="hs-identifier hs-var">parserFun</span></a></span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="annot"><a href="HW5.Parser.html#parserExprValueBool"><span class="hs-identifier hs-type">parserExprValueBool</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiValue"><span class="hs-identifier hs-type">HiValue</span></a></span><span>
+</span><span id="line-92"></span><span id="parserExprValueBool"><span class="annot"><span class="annottext">parserExprValueBool :: Parser HiValue
+</span><a href="HW5.Parser.html#parserExprValueBool"><span class="hs-identifier hs-var hs-var">parserExprValueBool</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; HiValue) -&gt; Parser Bool -&gt; Parser HiValue
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; HiValue
+</span><a href="HW5.Base.html#HiValueBool"><span class="hs-identifier hs-var">HiValueBool</span></a></span><span> </span><span class="annot"><span class="annottext">Parser Bool
+</span><a href="HW5.Parser.html#parserBool"><span class="hs-identifier hs-var">parserBool</span></a></span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="annot"><a href="HW5.Parser.html#parserExprNull"><span class="hs-identifier hs-type">parserExprNull</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiValue"><span class="hs-identifier hs-type">HiValue</span></a></span><span>
+</span><span id="line-95"></span><span id="parserExprNull"><span class="annot"><span class="annottext">parserExprNull :: Parser HiValue
+</span><a href="HW5.Parser.html#parserExprNull"><span class="hs-identifier hs-var hs-var">parserExprNull</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HiValue
+</span><a href="HW5.Base.html#HiValueNull"><span class="hs-identifier hs-var">HiValueNull</span></a></span><span> </span><span class="annot"><span class="annottext">HiValue -&gt; ParsecT Void String Identity String -&gt; Parser HiValue
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;null&quot;</span></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="annot"><a href="HW5.Parser.html#parserExprValueText"><span class="hs-identifier hs-type">parserExprValueText</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiValue"><span class="hs-identifier hs-type">HiValue</span></a></span><span>
+</span><span id="line-98"></span><span id="parserExprValueText"><span class="annot"><span class="annottext">parserExprValueText :: Parser HiValue
+</span><a href="HW5.Parser.html#parserExprValueText"><span class="hs-identifier hs-var hs-var">parserExprValueText</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(String -&gt; HiValue)
+-&gt; ParsecT Void String Identity String -&gt; Parser HiValue
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; HiValue
+</span><a href="HW5.Base.html#HiValueString"><span class="hs-identifier hs-var">HiValueString</span></a></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; HiValue) -&gt; (String -&gt; Text) -&gt; String -&gt; HiValue
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Text
+</span><span class="hs-identifier hs-var">T.pack</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity String
+</span><a href="HW5.Parser.html#parserString"><span class="hs-identifier hs-var">parserString</span></a></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="annot"><a href="HW5.Parser.html#parserExprValueList"><span class="hs-identifier hs-type">parserExprValueList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-101"></span><span id="parserExprValueList"><span class="annot"><span class="annottext">parserExprValueList :: Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#parserExprValueList"><span class="hs-identifier hs-var hs-var">parserExprValueList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-102"></span><span>  </span><span id="local-6989586621679088187"><span class="annot"><span class="annottext">[HiExpr]
+</span><a href="#local-6989586621679088187"><span class="hs-identifier hs-var">getArgs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Parser [HiExpr] -&gt; Parser [HiExpr]
+forall a. String -&gt; String -&gt; Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipBothSides"><span class="hs-identifier hs-var">skipBothSides</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;[&quot;</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;]&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pExpr"><span class="hs-identifier hs-var">pExpr</span></a></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+-&gt; ParsecT Void String Identity Char -&gt; Parser [HiExpr]
+forall (m :: * -&gt; *) a end. MonadPlus m =&gt; m a -&gt; m end -&gt; m [a]
+</span><span class="hs-operator hs-var">`sepBy`</span></span><span> </span><span class="annot"><span class="annottext">Token String -&gt; ParsecT Void String Identity (Token String)
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+Token s -&gt; m (Token s)
+</span><span class="hs-identifier hs-var">char</span></span><span> </span><span class="annot"><span class="annottext">Char
+Token String
+</span><span class="hs-char">','</span></span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span>  </span><span class="annot"><span class="annottext">HiExpr -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HiExpr -&gt; [HiExpr] -&gt; HiExpr
+</span><a href="HW5.Base.html#HiExprApply"><span class="hs-identifier hs-var">HiExprApply</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HiValue -&gt; HiExpr
+</span><a href="HW5.Base.html#HiExprValue"><span class="hs-identifier hs-var">HiExprValue</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HiFun -&gt; HiValue
+</span><a href="HW5.Base.html#HiValueFunction"><span class="hs-identifier hs-var">HiValueFunction</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunList"><span class="hs-identifier hs-var">HiFunList</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[HiExpr]
+</span><a href="#local-6989586621679088187"><span class="hs-identifier hs-var">getArgs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="annot"><a href="HW5.Parser.html#parserByteString"><span class="hs-identifier hs-type">parserByteString</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-106"></span><span id="parserByteString"><span class="annot"><span class="annottext">parserByteString :: ParsecT Void String Identity String
+</span><a href="HW5.Parser.html#parserByteString"><span class="hs-identifier hs-var hs-var">parserByteString</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+-&gt; ParsecT Void String Identity Char
+-&gt; ParsecT Void String Identity String
+forall (m :: * -&gt; *) a. Monad m =&gt; Int -&gt; m a -&gt; m [a]
+</span><span class="hs-identifier hs-var">MP.count</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">2</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity Char
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+m (Token s)
+</span><span class="hs-identifier hs-var">hexDigitChar</span></span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="annot"><a href="HW5.Parser.html#parserExprValueBytes"><span class="hs-identifier hs-type">parserExprValueBytes</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiValue"><span class="hs-identifier hs-type">HiValue</span></a></span><span>
+</span><span id="line-109"></span><span id="parserExprValueBytes"><span class="annot"><span class="annottext">parserExprValueBytes :: Parser HiValue
+</span><a href="HW5.Parser.html#parserExprValueBytes"><span class="hs-identifier hs-var hs-var">parserExprValueBytes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-110"></span><span>  </span><span id="local-6989586621679088178"><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621679088178"><span class="hs-identifier hs-var">getArgs</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Parser [String] -&gt; Parser [String]
+forall a. String -&gt; String -&gt; Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipBothSides"><span class="hs-identifier hs-var">skipBothSides</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;[#&quot;</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;#]&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser [String] -&gt; Parser [String]
+forall a. Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipSpaces"><span class="hs-identifier hs-var">skipSpaces</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ParsecT Void String Identity String
+</span><a href="HW5.Parser.html#parserByteString"><span class="hs-identifier hs-var">parserByteString</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity String
+-&gt; ParsecT Void String Identity () -&gt; Parser [String]
+forall (m :: * -&gt; *) a end. MonadPlus m =&gt; m a -&gt; m end -&gt; m [a]
+</span><span class="hs-operator hs-var">`sepEndBy`</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity ()
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+m ()
+</span><span class="hs-identifier hs-var">space1</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679088174"><span class="annot"><span class="annottext">hexArgs :: Maybe [Word8]
+</span><a href="#local-6989586621679088174"><span class="hs-identifier hs-var hs-var">hexArgs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(String -&gt; Maybe Word8) -&gt; [String] -&gt; Maybe [Word8]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Traversable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m (t b)
+</span><span class="hs-identifier hs-var">mapM</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Maybe Word8
+</span><a href="HW5.Parser.html#readMaybeHex"><span class="hs-identifier hs-var">readMaybeHex</span></a></span><span> </span><span class="annot"><span class="annottext">[String]
+</span><a href="#local-6989586621679088178"><span class="hs-identifier hs-var">getArgs</span></a></span><span>
+</span><span id="line-112"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe [Word8]
+</span><a href="#local-6989586621679088174"><span class="hs-identifier hs-var">hexArgs</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-113"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679088171"><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621679088171"><span class="hs-identifier hs-var">bytes</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">HiValue -&gt; Parser HiValue
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; HiValue
+</span><a href="HW5.Base.html#HiValueBytes"><span class="hs-identifier hs-var">HiValueBytes</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Word8] -&gt; ByteString
+</span><span class="hs-identifier hs-var">Data.ByteString.pack</span></span><span> </span><span class="annot"><span class="annottext">[Word8]
+</span><a href="#local-6989586621679088171"><span class="hs-identifier hs-var">bytes</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-114"></span><span>    </span><span class="annot"><span class="annottext">Maybe [Word8]
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Parser HiValue
+forall (m :: * -&gt; *) a. MonadFail m =&gt; String -&gt; m a
+</span><span class="hs-identifier hs-var">fail</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;Failed convert&quot;</span></span><span>
+</span><span id="line-115"></span><span>
+</span><span id="line-116"></span><span class="annot"><a href="HW5.Parser.html#readMaybeHex"><span class="hs-identifier hs-type">readMaybeHex</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span>
+</span><span id="line-117"></span><span id="readMaybeHex"><span class="annot"><span class="annottext">readMaybeHex :: String -&gt; Maybe Word8
+</span><a href="HW5.Parser.html#readMaybeHex"><span class="hs-identifier hs-var hs-var">readMaybeHex</span></a></span></span><span> </span><span id="local-6989586621679088168"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679088168"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">String -&gt; Maybe Int
+forall a. Read a =&gt; String -&gt; Maybe a
+</span><span class="hs-identifier hs-var">readMaybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;0x&quot;</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679088168"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-118"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679088167"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679088167"><span class="hs-identifier hs-var">val</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679088167"><span class="hs-identifier hs-var">val</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679088167"><span class="hs-identifier hs-var">val</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;=</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">255</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Maybe Word8
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; Word8
+forall a. Enum a =&gt; Int -&gt; a
+</span><span class="hs-identifier hs-var">toEnum</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679088167"><span class="hs-identifier hs-var">val</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-119"></span><span>  </span><span class="annot"><span class="annottext">Maybe Int
+</span><span class="hs-identifier">_</span></span><span>                                 </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Maybe Word8
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span class="annot"><a href="HW5.Parser.html#parserExprValueAction"><span class="hs-identifier hs-type">parserExprValueAction</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiValue"><span class="hs-identifier hs-type">HiValue</span></a></span><span>
+</span><span id="line-122"></span><span id="parserExprValueAction"><span class="annot"><span class="annottext">parserExprValueAction :: Parser HiValue
+</span><a href="HW5.Parser.html#parserExprValueAction"><span class="hs-identifier hs-var hs-var">parserExprValueAction</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Parser HiValue] -&gt; Parser HiValue
+forall (f :: * -&gt; *) (m :: * -&gt; *) a.
+(Foldable f, Alternative m) =&gt;
+f (m a) -&gt; m a
+</span><span class="hs-identifier hs-var">choice</span></span><span> </span><span class="hs-special">[</span><span>
+</span><span id="line-123"></span><span>    </span><span class="annot"><span class="annottext">HiAction -&gt; HiValue
+</span><a href="HW5.Base.html#HiValueAction"><span class="hs-identifier hs-var">HiValueAction</span></a></span><span> </span><span class="annot"><span class="annottext">HiAction
+</span><a href="HW5.Base.html#HiActionCwd"><span class="hs-identifier hs-var">HiActionCwd</span></a></span><span> </span><span class="annot"><span class="annottext">HiValue -&gt; ParsecT Void String Identity String -&gt; Parser HiValue
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;cwd&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-124"></span><span>    </span><span class="annot"><span class="annottext">HiAction -&gt; HiValue
+</span><a href="HW5.Base.html#HiValueAction"><span class="hs-identifier hs-var">HiValueAction</span></a></span><span> </span><span class="annot"><span class="annottext">HiAction
+</span><a href="HW5.Base.html#HiActionNow"><span class="hs-identifier hs-var">HiActionNow</span></a></span><span> </span><span class="annot"><span class="annottext">HiValue -&gt; ParsecT Void String Identity String -&gt; Parser HiValue
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;now&quot;</span></span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="annot"><a href="HW5.Parser.html#parserExprValueNotList"><span class="hs-identifier hs-type">parserExprValueNotList</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiValue"><span class="hs-identifier hs-type">HiValue</span></a></span><span>
+</span><span id="line-127"></span><span id="parserExprValueNotList"><span class="annot"><span class="annottext">parserExprValueNotList :: Parser HiValue
+</span><a href="HW5.Parser.html#parserExprValueNotList"><span class="hs-identifier hs-var hs-var">parserExprValueNotList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser HiValue
+</span><a href="HW5.Parser.html#parserExprValueBytes"><span class="hs-identifier hs-var">parserExprValueBytes</span></a></span><span>
+</span><span id="line-128"></span><span>                      </span><span class="annot"><span class="annottext">Parser HiValue -&gt; Parser HiValue -&gt; Parser HiValue
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser HiValue
+</span><a href="HW5.Parser.html#parserExprValueNumber"><span class="hs-identifier hs-var">parserExprValueNumber</span></a></span><span>
+</span><span id="line-129"></span><span>                      </span><span class="annot"><span class="annottext">Parser HiValue -&gt; Parser HiValue -&gt; Parser HiValue
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser HiValue
+</span><a href="HW5.Parser.html#parserExprValueFun"><span class="hs-identifier hs-var">parserExprValueFun</span></a></span><span>
+</span><span id="line-130"></span><span>                      </span><span class="annot"><span class="annottext">Parser HiValue -&gt; Parser HiValue -&gt; Parser HiValue
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser HiValue
+</span><a href="HW5.Parser.html#parserExprValueBool"><span class="hs-identifier hs-var">parserExprValueBool</span></a></span><span>
+</span><span id="line-131"></span><span>                      </span><span class="annot"><span class="annottext">Parser HiValue -&gt; Parser HiValue -&gt; Parser HiValue
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser HiValue
+</span><a href="HW5.Parser.html#parserExprValueText"><span class="hs-identifier hs-var">parserExprValueText</span></a></span><span>
+</span><span id="line-132"></span><span>                      </span><span class="annot"><span class="annottext">Parser HiValue -&gt; Parser HiValue -&gt; Parser HiValue
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser HiValue
+</span><a href="HW5.Parser.html#parserExprNull"><span class="hs-identifier hs-var">parserExprNull</span></a></span><span>
+</span><span id="line-133"></span><span>                      </span><span class="annot"><span class="annottext">Parser HiValue -&gt; Parser HiValue -&gt; Parser HiValue
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser HiValue
+</span><a href="HW5.Parser.html#parserExprValueAction"><span class="hs-identifier hs-var">parserExprValueAction</span></a></span><span>
+</span><span id="line-134"></span><span>
+</span><span id="line-135"></span><span class="annot"><a href="HW5.Parser.html#parserExprValue"><span class="hs-identifier hs-type">parserExprValue</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-136"></span><span id="parserExprValue"><span class="annot"><span class="annottext">parserExprValue :: Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#parserExprValue"><span class="hs-identifier hs-var hs-var">parserExprValue</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(HiValue -&gt; HiExpr) -&gt; Parser HiValue -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">HiValue -&gt; HiExpr
+</span><a href="HW5.Base.html#HiExprValue"><span class="hs-identifier hs-var">HiExprValue</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser HiValue -&gt; Parser HiValue
+forall a. Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipSpaces"><span class="hs-identifier hs-var">skipSpaces</span></a></span><span> </span><span class="annot"><span class="annottext">Parser HiValue
+</span><a href="HW5.Parser.html#parserExprValueNotList"><span class="hs-identifier hs-var">parserExprValueNotList</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+-&gt; Parsec Void String HiExpr -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr -&gt; Parsec Void String HiExpr
+forall a. Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipSpaces"><span class="hs-identifier hs-var">skipSpaces</span></a></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#parserExprValueList"><span class="hs-identifier hs-var">parserExprValueList</span></a></span><span>
+</span><span id="line-137"></span><span>
+</span><span id="line-138"></span><span class="annot"><a href="HW5.Parser.html#parserBinArgs"><span class="hs-identifier hs-type">parserBinArgs</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-139"></span><span id="parserBinArgs"><span class="annot"><span class="annottext">parserBinArgs :: Parser [HiExpr]
+</span><a href="HW5.Parser.html#parserBinArgs"><span class="hs-identifier hs-var hs-var">parserBinArgs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; String -&gt; Parser [HiExpr] -&gt; Parser [HiExpr]
+forall a. String -&gt; String -&gt; Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipBothSides"><span class="hs-identifier hs-var">skipBothSides</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;(&quot;</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;)&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pExpr"><span class="hs-identifier hs-var">pExpr</span></a></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+-&gt; ParsecT Void String Identity Char -&gt; Parser [HiExpr]
+forall (m :: * -&gt; *) a end. MonadPlus m =&gt; m a -&gt; m end -&gt; m [a]
+</span><span class="hs-operator hs-var">`sepBy`</span></span><span> </span><span class="annot"><span class="annottext">Token String -&gt; ParsecT Void String Identity (Token String)
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+Token s -&gt; m (Token s)
+</span><span class="hs-identifier hs-var">char</span></span><span> </span><span class="annot"><span class="annottext">Char
+Token String
+</span><span class="hs-char">','</span></span><span class="hs-special">)</span><span>
+</span><span id="line-140"></span><span>
+</span><span id="line-141"></span><span class="annot"><a href="HW5.Parser.html#pStandartArgsE%27"><span class="hs-identifier hs-type">pStandartArgsE'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-142"></span><span id="pStandartArgsE%27"><span class="annot"><span class="annottext">pStandartArgsE' :: HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pStandartArgsE%27"><span class="hs-identifier hs-var hs-var">pStandartArgsE'</span></a></span></span><span> </span><span id="local-6989586621679088154"><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088154"><span class="hs-identifier hs-var">func</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-143"></span><span>  </span><span id="local-6989586621679088153"><span class="annot"><span class="annottext">[HiExpr]
+</span><a href="#local-6989586621679088153"><span class="hs-identifier hs-var">args</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Parser [HiExpr] -&gt; Parser [HiExpr]
+forall a. Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipSpaces"><span class="hs-identifier hs-var">skipSpaces</span></a></span><span> </span><span class="annot"><span class="annottext">Parser [HiExpr]
+</span><a href="HW5.Parser.html#parserBinArgs"><span class="hs-identifier hs-var">parserBinArgs</span></a></span><span>
+</span><span id="line-144"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679088152"><span class="annot"><span class="annottext">applyFunction :: HiExpr
+</span><a href="#local-6989586621679088152"><span class="hs-identifier hs-var hs-var">applyFunction</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HiExpr -&gt; [HiExpr] -&gt; HiExpr
+</span><a href="HW5.Base.html#HiExprApply"><span class="hs-identifier hs-var">HiExprApply</span></a></span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088154"><span class="hs-identifier hs-var">func</span></a></span><span> </span><span class="annot"><span class="annottext">[HiExpr]
+</span><a href="#local-6989586621679088153"><span class="hs-identifier hs-var">args</span></a></span><span>
+</span><span id="line-145"></span><span>  </span><span class="annot"><span class="annottext">HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pContE%27"><span class="hs-identifier hs-var">pContE'</span></a></span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088152"><span class="hs-identifier hs-var">applyFunction</span></a></span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span class="annot"><a href="HW5.Parser.html#pDotArgsE%27"><span class="hs-identifier hs-type">pDotArgsE'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-148"></span><span id="pDotArgsE%27"><span class="annot"><span class="annottext">pDotArgsE' :: HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pDotArgsE%27"><span class="hs-identifier hs-var hs-var">pDotArgsE'</span></a></span></span><span> </span><span id="local-6989586621679088149"><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088149"><span class="hs-identifier hs-var">func</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-149"></span><span>  </span><span id="local-6989586621679088148"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679088148"><span class="hs-identifier hs-var">arg</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Token String -&gt; ParsecT Void String Identity (Token String)
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+Token s -&gt; m (Token s)
+</span><span class="hs-identifier hs-var">char</span></span><span> </span><span class="annot"><span class="annottext">Char
+Token String
+</span><span class="hs-char">'.'</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity Char
+-&gt; ParsecT Void String Identity String
+-&gt; ParsecT Void String Identity String
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity Char
+-&gt; ParsecT Void String Identity String
+forall (m :: * -&gt; *) a. MonadPlus m =&gt; m a -&gt; m [a]
+</span><span class="hs-identifier hs-var">some</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity Char
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+m (Token s)
+</span><span class="hs-identifier hs-var">letterChar</span></span><span>
+</span><span id="line-150"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679088145"><span class="annot"><span class="annottext">applyFunction :: HiExpr
+</span><a href="#local-6989586621679088145"><span class="hs-identifier hs-var hs-var">applyFunction</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HiExpr -&gt; [HiExpr] -&gt; HiExpr
+</span><a href="HW5.Base.html#HiExprApply"><span class="hs-identifier hs-var">HiExprApply</span></a></span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088149"><span class="hs-identifier hs-var">func</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">HiValue -&gt; HiExpr
+</span><a href="HW5.Base.html#HiExprValue"><span class="hs-identifier hs-var">HiExprValue</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; HiValue
+</span><a href="HW5.Base.html#HiValueString"><span class="hs-identifier hs-var">HiValueString</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String -&gt; Text
+</span><span class="hs-identifier hs-var">T.pack</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679088148"><span class="hs-identifier hs-var">arg</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-151"></span><span>  </span><span class="annot"><span class="annottext">HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pContE%27"><span class="hs-identifier hs-var">pContE'</span></a></span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088145"><span class="hs-identifier hs-var">applyFunction</span></a></span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span class="annot"><a href="HW5.Parser.html#pActionE%27"><span class="hs-identifier hs-type">pActionE'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-154"></span><span id="pActionE%27"><span class="annot"><span class="annottext">pActionE' :: HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pActionE%27"><span class="hs-identifier hs-var hs-var">pActionE'</span></a></span></span><span> </span><span id="local-6989586621679088143"><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088143"><span class="hs-identifier hs-var">action</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-155"></span><span>  </span><span class="annot"><span class="annottext">ParsecT Void String Identity Char
+-&gt; ParsecT Void String Identity ()
+forall (f :: * -&gt; *) a. Functor f =&gt; f a -&gt; f ()
+</span><span class="hs-identifier hs-var">void</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Token String -&gt; ParsecT Void String Identity (Token String)
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+Token s -&gt; m (Token s)
+</span><span class="hs-identifier hs-var">char</span></span><span> </span><span class="annot"><span class="annottext">Char
+Token String
+</span><span class="hs-char">'!'</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity Char
+-&gt; ParsecT Void String Identity ()
+-&gt; ParsecT Void String Identity Char
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;*</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity ()
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+m ()
+</span><span class="hs-identifier hs-var">space</span></span><span class="hs-special">)</span><span>
+</span><span id="line-156"></span><span>  </span><span class="annot"><span class="annottext">HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pContE%27"><span class="hs-identifier hs-var">pContE'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HiExpr -&gt; HiExpr
+</span><a href="HW5.Base.html#HiExprRun"><span class="hs-identifier hs-var">HiExprRun</span></a></span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088143"><span class="hs-identifier hs-var">action</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-157"></span><span>
+</span><span id="line-158"></span><span class="annot"><a href="HW5.Parser.html#pContE%27"><span class="hs-identifier hs-type">pContE'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-159"></span><span id="pContE%27"><span class="annot"><span class="annottext">pContE' :: HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pContE%27"><span class="hs-identifier hs-var hs-var">pContE'</span></a></span></span><span> </span><span id="local-6989586621679088140"><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088140"><span class="hs-identifier hs-var">exprGet</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pE%27"><span class="hs-identifier hs-var">pE'</span></a></span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088140"><span class="hs-identifier hs-var">exprGet</span></a></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+-&gt; Parsec Void String HiExpr -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">HiExpr -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088140"><span class="hs-identifier hs-var">exprGet</span></a></span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span class="annot"><a href="HW5.Parser.html#pE%27"><span class="hs-identifier hs-type">pE'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-162"></span><span id="pE%27"><span class="annot"><span class="annottext">pE' :: HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pE%27"><span class="hs-identifier hs-var hs-var">pE'</span></a></span></span><span> </span><span id="local-6989586621679088138"><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088138"><span class="hs-identifier hs-var">func</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pStandartArgsE%27"><span class="hs-identifier hs-var">pStandartArgsE'</span></a></span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088138"><span class="hs-identifier hs-var">func</span></a></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+-&gt; Parsec Void String HiExpr -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pDotArgsE%27"><span class="hs-identifier hs-var">pDotArgsE'</span></a></span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088138"><span class="hs-identifier hs-var">func</span></a></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+-&gt; Parsec Void String HiExpr -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pActionE%27"><span class="hs-identifier hs-var">pActionE'</span></a></span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088138"><span class="hs-identifier hs-var">func</span></a></span><span>
+</span><span id="line-163"></span><span>
+</span><span id="line-164"></span><span class="annot"><a href="HW5.Parser.html#pV"><span class="hs-identifier hs-type">pV</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-165"></span><span id="pV"><span class="annot"><span class="annottext">pV :: Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pV"><span class="hs-identifier hs-var hs-var">pV</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-166"></span><span>  </span><span id="local-6989586621679088136"><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088136"><span class="hs-identifier hs-var">pTerm</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr -&gt; Parsec Void String HiExpr
+forall a. Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipSpaces"><span class="hs-identifier hs-var">skipSpaces</span></a></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#parserExprValue"><span class="hs-identifier hs-var">parserExprValue</span></a></span><span>
+</span><span id="line-167"></span><span>  </span><span class="annot"><span class="annottext">HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pE%27"><span class="hs-identifier hs-var">pE'</span></a></span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088136"><span class="hs-identifier hs-var">pTerm</span></a></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+-&gt; Parsec Void String HiExpr -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">HiExpr -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088136"><span class="hs-identifier hs-var">pTerm</span></a></span><span>
+</span><span id="line-168"></span><span>
+</span><span id="line-169"></span><span class="annot"><a href="HW5.Parser.html#pBrackets"><span class="hs-identifier hs-type">pBrackets</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-170"></span><span id="pBrackets"><span class="annot"><span class="annottext">pBrackets :: Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pBrackets"><span class="hs-identifier hs-var hs-var">pBrackets</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-171"></span><span>  </span><span id="local-6989586621679088134"><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088134"><span class="hs-identifier hs-var">pTerm</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span class="annot"><span class="annottext">Parsec Void String HiExpr -&gt; Parsec Void String HiExpr
+forall a. Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipSpaces"><span class="hs-identifier hs-var">skipSpaces</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+-&gt; String -&gt; Parsec Void String HiExpr -&gt; Parsec Void String HiExpr
+forall a. String -&gt; String -&gt; Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipBothSides"><span class="hs-identifier hs-var">skipBothSides</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;(&quot;</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;)&quot;</span></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pExpr"><span class="hs-identifier hs-var">pExpr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-172"></span><span>  </span><span class="annot"><span class="annottext">HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pE%27"><span class="hs-identifier hs-var">pE'</span></a></span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088134"><span class="hs-identifier hs-var">pTerm</span></a></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+-&gt; Parsec Void String HiExpr -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">HiExpr -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088134"><span class="hs-identifier hs-var">pTerm</span></a></span><span>
+</span><span id="line-173"></span><span>
+</span><span id="line-174"></span><span class="annot"><a href="HW5.Parser.html#pDictValue"><span class="hs-identifier hs-type">pDictValue</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-175"></span><span id="pDictValue"><span class="annot"><span class="annottext">pDictValue :: Parser (HiExpr, HiExpr)
+</span><a href="HW5.Parser.html#pDictValue"><span class="hs-identifier hs-var hs-var">pDictValue</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-176"></span><span>  </span><span id="local-6989586621679088132"><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088132"><span class="hs-identifier hs-var">pKey</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pExpr"><span class="hs-identifier hs-var">pExpr</span></a></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+-&gt; ParsecT Void String Identity Char -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;*</span></span><span> </span><span class="annot"><span class="annottext">Token String -&gt; ParsecT Void String Identity (Token String)
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+Token s -&gt; m (Token s)
+</span><span class="hs-identifier hs-var">char</span></span><span> </span><span class="annot"><span class="annottext">Char
+Token String
+</span><span class="hs-char">':'</span></span><span>
+</span><span id="line-177"></span><span>  </span><span id="local-6989586621679088131"><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088131"><span class="hs-identifier hs-var">pValue</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pExpr"><span class="hs-identifier hs-var">pExpr</span></a></span><span>
+</span><span id="line-178"></span><span>  </span><span class="annot"><span class="annottext">(HiExpr, HiExpr) -&gt; Parser (HiExpr, HiExpr)
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088132"><span class="hs-identifier hs-var">pKey</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088131"><span class="hs-identifier hs-var">pValue</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-179"></span><span>
+</span><span id="line-180"></span><span class="annot"><a href="HW5.Parser.html#pDict"><span class="hs-identifier hs-type">pDict</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-181"></span><span id="pDict"><span class="annot"><span class="annottext">pDict :: Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pDict"><span class="hs-identifier hs-var hs-var">pDict</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-182"></span><span>  </span><span id="local-6989586621679088129"><span class="annot"><span class="annottext">[(HiExpr, HiExpr)]
+</span><a href="#local-6989586621679088129"><span class="hs-identifier hs-var">pTerm</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Parser [(HiExpr, HiExpr)] -&gt; Parser [(HiExpr, HiExpr)]
+forall a. Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipSpaces"><span class="hs-identifier hs-var">skipSpaces</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+-&gt; String -&gt; Parser [(HiExpr, HiExpr)] -&gt; Parser [(HiExpr, HiExpr)]
+forall a. String -&gt; String -&gt; Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipBothSides"><span class="hs-identifier hs-var">skipBothSides</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;{&quot;</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;}&quot;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser [(HiExpr, HiExpr)] -&gt; Parser [(HiExpr, HiExpr)]
+forall a. Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipSpaces"><span class="hs-identifier hs-var">skipSpaces</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parser (HiExpr, HiExpr)
+</span><a href="HW5.Parser.html#pDictValue"><span class="hs-identifier hs-var">pDictValue</span></a></span><span> </span><span class="annot"><span class="annottext">Parser (HiExpr, HiExpr)
+-&gt; ParsecT Void String Identity Char -&gt; Parser [(HiExpr, HiExpr)]
+forall (m :: * -&gt; *) a end. MonadPlus m =&gt; m a -&gt; m end -&gt; m [a]
+</span><span class="hs-operator hs-var">`sepBy`</span></span><span> </span><span class="annot"><span class="annottext">Token String -&gt; ParsecT Void String Identity (Token String)
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+Token s -&gt; m (Token s)
+</span><span class="hs-identifier hs-var">char</span></span><span> </span><span class="annot"><span class="annottext">Char
+Token String
+</span><span class="hs-char">','</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-183"></span><span>  </span><span class="annot"><span class="annottext">HiExpr -&gt; Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pContE%27"><span class="hs-identifier hs-var">pContE'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[(HiExpr, HiExpr)] -&gt; HiExpr
+</span><a href="HW5.Base.html#HiExprDict"><span class="hs-identifier hs-var">HiExprDict</span></a></span><span> </span><span class="annot"><span class="annottext">[(HiExpr, HiExpr)]
+</span><a href="#local-6989586621679088129"><span class="hs-identifier hs-var">pTerm</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-184"></span><span>
+</span><span id="line-185"></span><span class="annot"><a href="HW5.Parser.html#pE"><span class="hs-identifier hs-type">pE</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-186"></span><span id="pE"><span class="annot"><span class="annottext">pE :: Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pE"><span class="hs-identifier hs-var hs-var">pE</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr -&gt; Parsec Void String HiExpr
+forall a. Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipSpaces"><span class="hs-identifier hs-var">skipSpaces</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pV"><span class="hs-identifier hs-var">pV</span></a></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+-&gt; Parsec Void String HiExpr -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pBrackets"><span class="hs-identifier hs-var">pBrackets</span></a></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+-&gt; Parsec Void String HiExpr -&gt; Parsec Void String HiExpr
+forall (f :: * -&gt; *) a. Alternative f =&gt; f a -&gt; f a -&gt; f a
+</span><span class="hs-operator hs-var">&lt;|&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pDict"><span class="hs-identifier hs-var">pDict</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-187"></span><span>
+</span><span id="line-188"></span><span class="annot"><a href="HW5.Parser.html#pExpr"><span class="hs-identifier hs-type">pExpr</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-189"></span><span id="pExpr"><span class="annot"><span class="annottext">pExpr :: Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pExpr"><span class="hs-identifier hs-var hs-var">pExpr</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr -&gt; Parsec Void String HiExpr
+forall a. Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipSpaces"><span class="hs-identifier hs-var">skipSpaces</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+-&gt; [[Operator (ParsecT Void String Identity) HiExpr]]
+-&gt; Parsec Void String HiExpr
+forall (m :: * -&gt; *) a.
+MonadPlus m =&gt;
+m a -&gt; [[Operator m a]] -&gt; m a
+</span><span class="hs-identifier hs-var">makeExprParser</span></span><span> </span><span class="annot"><span class="annottext">Parsec Void String HiExpr
+</span><a href="HW5.Parser.html#pE"><span class="hs-identifier hs-var">pE</span></a></span><span> </span><span class="annot"><span class="annottext">[[Operator (ParsecT Void String Identity) HiExpr]]
+</span><a href="HW5.Parser.html#operatorTable"><span class="hs-identifier hs-var">operatorTable</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-190"></span><span>
+</span><span id="line-191"></span><span id="local-6989586621679088294"><span class="annot"><a href="HW5.Parser.html#skipSpaces"><span class="hs-identifier hs-type">skipSpaces</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679088294"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679088294"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-192"></span><span id="skipSpaces"><span class="annot"><span class="annottext">skipSpaces :: Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipSpaces"><span class="hs-identifier hs-var hs-var">skipSpaces</span></a></span></span><span> </span><span id="local-6989586621679088125"><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621679088125"><span class="hs-identifier hs-var">parser</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity ()
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+m ()
+</span><span class="hs-identifier hs-var">space</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity () -&gt; Parser a -&gt; Parser a
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621679088125"><span class="hs-identifier hs-var">parser</span></a></span><span> </span><span class="annot"><span class="annottext">Parser a -&gt; ParsecT Void String Identity () -&gt; Parser a
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;*</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity ()
+forall e s (m :: * -&gt; *).
+(MonadParsec e s m, Token s ~ Char) =&gt;
+m ()
+</span><span class="hs-identifier hs-var">space</span></span><span>
+</span><span id="line-193"></span><span>
+</span><span id="line-194"></span><span id="local-6989586621679088300"><span class="annot"><a href="HW5.Parser.html#skipBothSides"><span class="hs-identifier hs-type">skipBothSides</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679088300"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679088300"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-195"></span><span id="skipBothSides"><span class="annot"><span class="annottext">skipBothSides :: String -&gt; String -&gt; Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipBothSides"><span class="hs-identifier hs-var hs-var">skipBothSides</span></a></span></span><span> </span><span id="local-6989586621679088124"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679088124"><span class="hs-identifier hs-var">skipStart</span></a></span></span><span> </span><span id="local-6989586621679088123"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679088123"><span class="hs-identifier hs-var">skipEnd</span></a></span></span><span> </span><span id="local-6989586621679088122"><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621679088122"><span class="hs-identifier hs-var">parser</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">String
+Tokens String
+</span><a href="#local-6989586621679088124"><span class="hs-identifier hs-var">skipStart</span></a></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity String -&gt; Parser a -&gt; Parser a
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
+</span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Parser a
+</span><a href="#local-6989586621679088122"><span class="hs-identifier hs-var">parser</span></a></span><span> </span><span class="annot"><span class="annottext">Parser a -&gt; ParsecT Void String Identity String -&gt; Parser a
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;*</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">String
+Tokens String
+</span><a href="#local-6989586621679088123"><span class="hs-identifier hs-var">skipEnd</span></a></span><span>
+</span><span id="line-196"></span><span>
+</span><span id="line-197"></span><span class="annot"><a href="HW5.Parser.html#pStringJustDiv"><span class="hs-identifier hs-type">pStringJustDiv</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-198"></span><span id="pStringJustDiv"><span class="annot"><span class="annottext">pStringJustDiv :: ParsecT Void String Identity String
+</span><a href="HW5.Parser.html#pStringJustDiv"><span class="hs-identifier hs-var hs-var">pStringJustDiv</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity String
+-&gt; ParsecT Void String Identity String
+forall a. Parser a -&gt; Parser a
+</span><a href="HW5.Parser.html#skipSpaces"><span class="hs-identifier hs-var">skipSpaces</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;/&quot;</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity String
+-&gt; ParsecT Void String Identity ()
+-&gt; ParsecT Void String Identity String
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;*</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity String
+-&gt; ParsecT Void String Identity ()
+forall e s (m :: * -&gt; *) a. MonadParsec e s m =&gt; m a -&gt; m ()
+</span><span class="hs-identifier hs-var">notFollowedBy</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">Tokens String
+</span><span class="hs-string">&quot;=&quot;</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-199"></span><span>
+</span><span id="line-200"></span><span class="annot"><a href="HW5.Parser.html#getFunExpr"><span class="hs-identifier hs-type">getFunExpr</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Base.html#HiFun"><span class="hs-identifier hs-type">HiFun</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-201"></span><span id="getFunExpr"><span class="annot"><span class="annottext">getFunExpr :: HiFun -&gt; HiExpr -&gt; HiExpr -&gt; HiExpr
+</span><a href="HW5.Parser.html#getFunExpr"><span class="hs-identifier hs-var hs-var">getFunExpr</span></a></span></span><span> </span><span id="local-6989586621679088118"><span class="annot"><span class="annottext">HiFun
+</span><a href="#local-6989586621679088118"><span class="hs-identifier hs-var">fun</span></a></span></span><span> </span><span id="local-6989586621679088117"><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088117"><span class="hs-identifier hs-var">left</span></a></span></span><span> </span><span id="local-6989586621679088116"><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088116"><span class="hs-identifier hs-var">right</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">HiExpr -&gt; [HiExpr] -&gt; HiExpr
+</span><a href="HW5.Base.html#HiExprApply"><span class="hs-identifier hs-var">HiExprApply</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HiValue -&gt; HiExpr
+</span><a href="HW5.Base.html#HiExprValue"><span class="hs-identifier hs-var">HiExprValue</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HiFun -&gt; HiValue
+</span><a href="HW5.Base.html#HiValueFunction"><span class="hs-identifier hs-var">HiValueFunction</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="#local-6989586621679088118"><span class="hs-identifier hs-var">fun</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088117"><span class="hs-identifier hs-var">left</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">HiExpr
+</span><a href="#local-6989586621679088116"><span class="hs-identifier hs-var">right</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-202"></span><span>
+</span><span id="line-203"></span><span class="annot"><a href="HW5.Parser.html#binaryL"><span class="hs-identifier hs-type">binaryL</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Base.html#HiFun"><span class="hs-identifier hs-type">HiFun</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Operator</span></span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-204"></span><span id="binaryL"><span class="annot"><span class="annottext">binaryL :: HiFun -&gt; String -&gt; Operator (ParsecT Void String Identity) HiExpr
+</span><a href="HW5.Parser.html#binaryL"><span class="hs-identifier hs-var hs-var">binaryL</span></a></span></span><span> </span><span id="local-6989586621679088114"><span class="annot"><span class="annottext">HiFun
+</span><a href="#local-6989586621679088114"><span class="hs-identifier hs-var">fun</span></a></span></span><span> </span><span id="local-6989586621679088113"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679088113"><span class="hs-identifier hs-var">str</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser (HiExpr -&gt; HiExpr -&gt; HiExpr)
+-&gt; Operator (ParsecT Void String Identity) HiExpr
+forall (m :: * -&gt; *) a. m (a -&gt; a -&gt; a) -&gt; Operator m a
+</span><span class="hs-identifier hs-var">InfixL</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HiFun -&gt; HiExpr -&gt; HiExpr -&gt; HiExpr
+</span><a href="HW5.Parser.html#getFunExpr"><span class="hs-identifier hs-var">getFunExpr</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="#local-6989586621679088114"><span class="hs-identifier hs-var">fun</span></a></span><span> </span><span class="annot"><span class="annottext">(HiExpr -&gt; HiExpr -&gt; HiExpr)
+-&gt; ParsecT Void String Identity String
+-&gt; Parser (HiExpr -&gt; HiExpr -&gt; HiExpr)
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">String
+Tokens String
+</span><a href="#local-6989586621679088113"><span class="hs-identifier hs-var">str</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-205"></span><span>
+</span><span id="line-206"></span><span class="annot"><a href="HW5.Parser.html#binaryR"><span class="hs-identifier hs-type">binaryR</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Base.html#HiFun"><span class="hs-identifier hs-type">HiFun</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Operator</span></span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-207"></span><span id="binaryR"><span class="annot"><span class="annottext">binaryR :: HiFun -&gt; String -&gt; Operator (ParsecT Void String Identity) HiExpr
+</span><a href="HW5.Parser.html#binaryR"><span class="hs-identifier hs-var hs-var">binaryR</span></a></span></span><span> </span><span id="local-6989586621679088110"><span class="annot"><span class="annottext">HiFun
+</span><a href="#local-6989586621679088110"><span class="hs-identifier hs-var">fun</span></a></span></span><span> </span><span id="local-6989586621679088109"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679088109"><span class="hs-identifier hs-var">str</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser (HiExpr -&gt; HiExpr -&gt; HiExpr)
+-&gt; Operator (ParsecT Void String Identity) HiExpr
+forall (m :: * -&gt; *) a. m (a -&gt; a -&gt; a) -&gt; Operator m a
+</span><span class="hs-identifier hs-var">InfixR</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HiFun -&gt; HiExpr -&gt; HiExpr -&gt; HiExpr
+</span><a href="HW5.Parser.html#getFunExpr"><span class="hs-identifier hs-var">getFunExpr</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="#local-6989586621679088110"><span class="hs-identifier hs-var">fun</span></a></span><span> </span><span class="annot"><span class="annottext">(HiExpr -&gt; HiExpr -&gt; HiExpr)
+-&gt; ParsecT Void String Identity String
+-&gt; Parser (HiExpr -&gt; HiExpr -&gt; HiExpr)
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">String
+Tokens String
+</span><a href="#local-6989586621679088109"><span class="hs-identifier hs-var">str</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-208"></span><span>
+</span><span id="line-209"></span><span class="annot"><a href="HW5.Parser.html#binaryN"><span class="hs-identifier hs-type">binaryN</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="HW5.Base.html#HiFun"><span class="hs-identifier hs-type">HiFun</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Operator</span></span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span>
+</span><span id="line-210"></span><span id="binaryN"><span class="annot"><span class="annottext">binaryN :: HiFun -&gt; String -&gt; Operator (ParsecT Void String Identity) HiExpr
+</span><a href="HW5.Parser.html#binaryN"><span class="hs-identifier hs-var hs-var">binaryN</span></a></span></span><span> </span><span id="local-6989586621679088106"><span class="annot"><span class="annottext">HiFun
+</span><a href="#local-6989586621679088106"><span class="hs-identifier hs-var">fun</span></a></span></span><span> </span><span id="local-6989586621679088105"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679088105"><span class="hs-identifier hs-var">str</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Parser (HiExpr -&gt; HiExpr -&gt; HiExpr)
+-&gt; Operator (ParsecT Void String Identity) HiExpr
+forall (m :: * -&gt; *) a. m (a -&gt; a -&gt; a) -&gt; Operator m a
+</span><span class="hs-identifier hs-var">InfixN</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HiFun -&gt; HiExpr -&gt; HiExpr -&gt; HiExpr
+</span><a href="HW5.Parser.html#getFunExpr"><span class="hs-identifier hs-var">getFunExpr</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="#local-6989586621679088106"><span class="hs-identifier hs-var">fun</span></a></span><span> </span><span class="annot"><span class="annottext">(HiExpr -&gt; HiExpr -&gt; HiExpr)
+-&gt; ParsecT Void String Identity String
+-&gt; Parser (HiExpr -&gt; HiExpr -&gt; HiExpr)
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">Tokens String -&gt; ParsecT Void String Identity (Tokens String)
+forall e s (m :: * -&gt; *).
+MonadParsec e s m =&gt;
+Tokens s -&gt; m (Tokens s)
+</span><span class="hs-identifier hs-var">string</span></span><span> </span><span class="annot"><span class="annottext">String
+Tokens String
+</span><a href="#local-6989586621679088105"><span class="hs-identifier hs-var">str</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-211"></span><span>
+</span><span id="line-212"></span><span class="annot"><a href="HW5.Parser.html#operatorTable"><span class="hs-identifier hs-type">operatorTable</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Operator</span></span><span> </span><span class="annot"><a href="HW5.Parser.html#Parser"><span class="hs-identifier hs-type">Parser</span></a></span><span> </span><span class="annot"><a href="HW5.Base.html#HiExpr"><span class="hs-identifier hs-type">HiExpr</span></a></span><span class="hs-special">]</span><span class="hs-special">]</span><span>
+</span><span id="line-213"></span><span id="operatorTable"><span class="annot"><span class="annottext">operatorTable :: [[Operator (ParsecT Void String Identity) HiExpr]]
+</span><a href="HW5.Parser.html#operatorTable"><span class="hs-identifier hs-var hs-var">operatorTable</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span>
+</span><span id="line-214"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Parser (HiExpr -&gt; HiExpr -&gt; HiExpr)
+-&gt; Operator (ParsecT Void String Identity) HiExpr
+forall (m :: * -&gt; *) a. m (a -&gt; a -&gt; a) -&gt; Operator m a
+</span><span class="hs-identifier hs-var">InfixL</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HiFun -&gt; HiExpr -&gt; HiExpr -&gt; HiExpr
+</span><a href="HW5.Parser.html#getFunExpr"><span class="hs-identifier hs-var">getFunExpr</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunDiv"><span class="hs-identifier hs-var">HiFunDiv</span></a></span><span> </span><span class="annot"><span class="annottext">(HiExpr -&gt; HiExpr -&gt; HiExpr)
+-&gt; ParsecT Void String Identity String
+-&gt; Parser (HiExpr -&gt; HiExpr -&gt; HiExpr)
+forall (f :: * -&gt; *) a b. Functor f =&gt; a -&gt; f b -&gt; f a
+</span><span class="hs-operator hs-var">&lt;$</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity String
+-&gt; ParsecT Void String Identity String
+forall e s (m :: * -&gt; *) a. MonadParsec e s m =&gt; m a -&gt; m a
+</span><span class="hs-identifier hs-var">try</span></span><span> </span><span class="annot"><span class="annottext">ParsecT Void String Identity String
+</span><a href="HW5.Parser.html#pStringJustDiv"><span class="hs-identifier hs-var">pStringJustDiv</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-215"></span><span>      </span><span class="annot"><span class="annottext">HiFun -&gt; String -&gt; Operator (ParsecT Void String Identity) HiExpr
+</span><a href="HW5.Parser.html#binaryL"><span class="hs-identifier hs-var">binaryL</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunMul"><span class="hs-identifier hs-var">HiFunMul</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;*&quot;</span></span><span> </span><span class="hs-special">]</span><span class="hs-special">,</span><span>
+</span><span id="line-216"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; String -&gt; Operator (ParsecT Void String Identity) HiExpr
+</span><a href="HW5.Parser.html#binaryL"><span class="hs-identifier hs-var">binaryL</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunAdd"><span class="hs-identifier hs-var">HiFunAdd</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;+&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-217"></span><span>      </span><span class="annot"><span class="annottext">HiFun -&gt; String -&gt; Operator (ParsecT Void String Identity) HiExpr
+</span><a href="HW5.Parser.html#binaryL"><span class="hs-identifier hs-var">binaryL</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunSub"><span class="hs-identifier hs-var">HiFunSub</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;-&quot;</span></span><span> </span><span class="hs-special">]</span><span class="hs-special">,</span><span>
+</span><span id="line-218"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; String -&gt; Operator (ParsecT Void String Identity) HiExpr
+</span><a href="HW5.Parser.html#binaryN"><span class="hs-identifier hs-var">binaryN</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunNotGreaterThan"><span class="hs-identifier hs-var">HiFunNotGreaterThan</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&lt;=&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-219"></span><span>      </span><span class="annot"><span class="annottext">HiFun -&gt; String -&gt; Operator (ParsecT Void String Identity) HiExpr
+</span><a href="HW5.Parser.html#binaryN"><span class="hs-identifier hs-var">binaryN</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunNotLessThan"><span class="hs-identifier hs-var">HiFunNotLessThan</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&gt;=&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-220"></span><span>      </span><span class="annot"><span class="annottext">HiFun -&gt; String -&gt; Operator (ParsecT Void String Identity) HiExpr
+</span><a href="HW5.Parser.html#binaryN"><span class="hs-identifier hs-var">binaryN</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunEquals"><span class="hs-identifier hs-var">HiFunEquals</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;==&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-221"></span><span>      </span><span class="annot"><span class="annottext">HiFun -&gt; String -&gt; Operator (ParsecT Void String Identity) HiExpr
+</span><a href="HW5.Parser.html#binaryN"><span class="hs-identifier hs-var">binaryN</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunNotEquals"><span class="hs-identifier hs-var">HiFunNotEquals</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;/=&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-222"></span><span>      </span><span class="annot"><span class="annottext">HiFun -&gt; String -&gt; Operator (ParsecT Void String Identity) HiExpr
+</span><a href="HW5.Parser.html#binaryN"><span class="hs-identifier hs-var">binaryN</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunLessThan"><span class="hs-identifier hs-var">HiFunLessThan</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&lt;&quot;</span></span><span class="hs-special">,</span><span>
+</span><span id="line-223"></span><span>      </span><span class="annot"><span class="annottext">HiFun -&gt; String -&gt; Operator (ParsecT Void String Identity) HiExpr
+</span><a href="HW5.Parser.html#binaryN"><span class="hs-identifier hs-var">binaryN</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunGreaterThan"><span class="hs-identifier hs-var">HiFunGreaterThan</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&gt;&quot;</span></span><span> </span><span class="hs-special">]</span><span class="hs-special">,</span><span>
+</span><span id="line-224"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; String -&gt; Operator (ParsecT Void String Identity) HiExpr
+</span><a href="HW5.Parser.html#binaryR"><span class="hs-identifier hs-var">binaryR</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunAnd"><span class="hs-identifier hs-var">HiFunAnd</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;&amp;&amp;&quot;</span></span><span> </span><span class="hs-special">]</span><span class="hs-special">,</span><span>
+</span><span id="line-225"></span><span>    </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">HiFun -&gt; String -&gt; Operator (ParsecT Void String Identity) HiExpr
+</span><a href="HW5.Parser.html#binaryR"><span class="hs-identifier hs-var">binaryR</span></a></span><span> </span><span class="annot"><span class="annottext">HiFun
+</span><a href="HW5.Base.html#HiFunOr"><span class="hs-identifier hs-var">HiFunOr</span></a></span><span> </span><span class="annot"><span class="annottext">String
+</span><span class="hs-string">&quot;||&quot;</span></span><span> </span><span class="hs-special">]</span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-226"></span></pre></body></html>
